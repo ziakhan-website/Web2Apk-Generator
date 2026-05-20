@@ -43,7 +43,6 @@ body {
 .header {
   text-align: center;
   margin-bottom: 60px;
-  animation: slideDown 0.8s ease;
 }
 
 .header h1 {
@@ -53,7 +52,6 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 12px;
-  letter-spacing: -2px;
 }
 
 .header p { color: var(--muted); font-size: 18px; }
@@ -65,7 +63,7 @@ body {
 }
 
 @media (max-width: 1000px) {
- .grid { grid-template-columns: 1fr; }
+.grid { grid-template-columns: 1fr; }
 }
 
 .card {
@@ -75,7 +73,6 @@ body {
   border-radius: 28px;
   border: 1px solid var(--border);
   box-shadow: 0 30px 80px rgba(0,0,0,0.5);
-  animation: fadeIn 1s ease;
 }
 
 .step {
@@ -114,7 +111,6 @@ input, textarea {
   margin-bottom: 18px;
   outline: none;
   font-size: 15px;
-  transition: 0.2s;
 }
 
 input:focus {
@@ -132,7 +128,7 @@ input:focus {
   margin-bottom: 18px;
 }
 
-.upload-zone:hover,.upload-zone.drag {
+.upload-zone:hover {
   border-color: var(--accent1);
   background: rgba(127,90,240,0.1);
 }
@@ -150,20 +146,12 @@ input:focus {
   transition: 0.3s;
 }
 
-.btn:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(127,90,240,0.4); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:hover { transform: translateY(-3px); }
 
 .phone-mock {
   background: #000;
   border-radius: 50px;
   padding: 14px;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.7);
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
- 0%, 100% {transform: translateY(0);}
- 50% {transform: translateY(-10px);}
 }
 
 .screen {
@@ -183,10 +171,6 @@ input:focus {
   font-size: 20px;
 }
 
-.file-list {
-  margin-top: 20px;
-}
-
 .file-item {
   background: rgba(0,0,0,0.3);
   padding: 16px;
@@ -195,15 +179,6 @@ input:focus {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.tag {
-  background: rgba(127,90,240,0.2);
-  color: #a7a9be;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .success-msg {
@@ -216,22 +191,8 @@ input:focus {
   display: none;
 }
 
-@keyframes slideDown {
-  from {opacity:0; transform: translateY(-30px);}
-  to {opacity:1; transform: translateY(0);}
-}
-
-@keyframes fadeIn {
-  from {opacity:0;}
-  to {opacity:1;}
-}
-
 .valid { border-color: #10b981!important; }
 .invalid { border-color: #ef4444!important; }
-
-@media (max-width: 1000px) {
-  .header h1 { font-size: 36px; }
-}
 </style>
 </head>
 <body>
@@ -269,11 +230,11 @@ input:focus {
       <input id="color" type="color" value="#7f5af0" onchange="updatePreview()">
 
       <label>App Icon</label>
-      <div class="upload-zone" id="dropZone">
+      <div class="upload-zone" onclick="document.getElementById('icon').click()">
         <input id="icon" type="file" accept="image/*" style="display:none" onchange="handleIcon(event)">
         <div id="iconPreview">
           <p style="font-size:40px">📱</p>
-          <p>Drag & drop or click to upload</p>
+          <p>Click to upload icon</p>
           <p style="font-size:12px;color:var(--muted)">512x512 PNG recommended</p>
         </div>
       </div>
@@ -298,4 +259,116 @@ input:focus {
         </div>
       </div>
 
-      <div id="qrBox" style="text-align:center
+      <div id="qrBox" style="text-align:center;margin-top:24px;display:none">
+        <p style="color:var(--muted);margin-bottom:12px">Test on phone</p>
+        <canvas id="qrcode"></canvas>
+      </div>
+
+      <div id="exportBox" style="display:none;margin-top:24px">
+        <div class="file-item">
+          <span>📦 web2apk-package.zip</span>
+          <span>Ready</span>
+        </div>
+        <button class="btn" onclick="downloadZip()">Download Everything</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let iconData = '';
+let manifestData = {};
+let zip = new JSZip();
+
+function validateURL(input) {
+  try {
+    new URL(input.value);
+    input.classList.add('valid');
+    input.classList.remove('invalid');
+  } catch {
+    input.classList.add('invalid');
+    input.classList.remove('valid');
+  }
+}
+
+function updatePreview() {
+  const name = document.getElementById('shortName').value || 'MyApp';
+  const color = document.getElementById('color').value;
+  document.getElementById('phoneHeader').textContent = name;
+  document.getElementById('phoneHeader').style.background = color;
+}
+
+function handleIcon(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    iconData = event.target.result;
+    document.getElementById('iconPreview').innerHTML = `
+      <img src="${iconData}" style="width:100px;height:100px;border-radius:24px;margin-bottom:10px">
+      <p>Icon uploaded ✓</p>
+    `;
+  }
+  reader.readAsDataURL(file);
+}
+
+function generate() {
+  const url = document.getElementById('url').value;
+  const name = document.getElementById('name').value;
+  const shortName = document.getElementById('shortName').value;
+  const desc = document.getElementById('desc').value;
+  const color = document.getElementById('color').value;
+
+  if(!url ||!name) {
+    alert('Please fill URL and App Name');
+    return;
+  }
+
+  manifestData = {
+    name: name,
+    short_name: shortName || name.substring(0,12),
+    description: desc,
+    start_url: url,
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#0f172a",
+    theme_color: color,
+    icons: [{
+      src: iconData || `https://via.placeholder.com/512x512/${color.replace('#','')}/ffffff?text=${shortName}`,
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "any maskable"
+    }]
+  };
+
+  const swContent = `const CACHE = 'web2apk-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll([self.location.origin])));
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+});`;
+
+  QRCode.toCanvas(document.getElementById('qrcode'), url, {width: 160, margin: 1});
+  document.getElementById('qrBox').style.display = 'block';
+
+  zip.file('manifest.json', JSON.stringify(manifestData, null, 2));
+  zip.file('sw.js', swContent);
+  zip.file('README.md', `# Web2APK Package\n1. Upload manifest.json and sw.js to your website root\n2. Go to https://pwabuilder.com\n3. Enter your URL and click Build My PWA\n4. Download Android APK`);
+
+  document.getElementById('exportBox').style.display = 'block';
+  document.getElementById('success').style.display = 'block';
+}
+
+async function downloadZip() {
+  const content = await zip.generateAsync({type: 'blob'});
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'web2apk-package.zip';
+  a.click();
+}
+</script>
+</body>
+  </html>
